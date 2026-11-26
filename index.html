@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendor Arrival Monitoring</title>
+<style>
+  /* ====== Dasar ====== */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; background: #eef1f5; color: #222; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+
+  /* ====== Header ====== */
+  header.topbar { background: #fff; border-bottom: 3px solid #1e5aa8; padding: 12px 0; }
+  .topbar .wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo { background: #1e5aa8; color: #fff; font-weight: 800; font-size: 20px; padding: 6px 12px; border-radius: 6px; letter-spacing: 1px; }
+  .brand .logo span { color: #ffd34d; }
+  .brand .sub { font-size: 13px; color: #666; letter-spacing: 2px; font-weight: 600; }
+  .clockbox { text-align: right; font-size: 13px; color: #444; }
+  .clockbox .time { font-size: 20px; font-weight: 700; color: #1e5aa8; font-variant-numeric: tabular-nums; }
+  .userbox { font-size: 13px; color: #444; }
+  .userbox b { color: #1e5aa8; }
+
+  /* ====== Judul papan ====== */
+  .board-title { background: #1e5aa8; color: #fff; text-align: center; font-size: 20px; font-weight: 700; letter-spacing: 1px; padding: 12px; border-radius: 8px 8px 0 0; margin-top: 16px; }
+
+  /* ====== Strip statistik ====== */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; background: #fff; border: 1px solid #d5dbe3; border-top: none; }
+  .stat { padding: 12px 8px; text-align: center; cursor: pointer; border-right: 1px solid #d5dbe3; }
+  .stat:last-child { border-right: none; }
+  .stat .label { font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+  .stat .num { font-size: 30px; font-weight: 800; line-height: 1.1; }
+  .stat.remaining .label, .stat.remaining .num { color: #1e5aa8; }
+  .stat.delayed .label, .stat.delayed .num { color: #d92d20; }
+  .stat.overdue .label, .stat.overdue .num { color: #b54708; }
+  .stat.onschedule .label, .stat.onschedule .num { color: #067647; }
+  .stat.active { background: #eaf1fb; box-shadow: inset 0 -3px 0 #1e5aa8; }
+  .stat small { display: block; font-size: 11px; color: #888; }
+
+  /* ====== Toolbar filter ====== */
+  .toolbar { background: #fff; border: 1px solid #d5dbe3; border-top: none; padding: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .toolbar label { font-size: 13px; color: #555; font-weight: 600; }
+  .toolbar input, .toolbar select { padding: 7px 9px; border: 1px solid #c6cdd6; border-radius: 6px; font-size: 14px; background: #fff; }
+  .toolbar input[type="search"] { min-width: 200px; }
+  .spacer { flex: 1; }
+  button { cursor: pointer; border: none; border-radius: 6px; font-size: 14px; padding: 8px 14px; }
+  .btn-primary { background: #1e5aa8; color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: #174a8a; }
+  .btn-ghost { background: #eef1f5; color: #333; border: 1px solid #c6cdd6; }
+  .btn-danger { background: #fdecea; color: #b42318; border: 1px solid #f1b6b0; }
+  .btn-small { padding: 5px 10px; font-size: 13px; }
+  .btn-checkin { background: #067647; color: #fff; }
+  .btn-checkin:hover { background: #05603a; }
+
+  /* ====== Tabel ====== */
+  .tablewrap { background: #fff; border: 1px solid #d5dbe3; border-top: none; border-radius: 0 0 8px 8px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 900px; }
+  thead th { background: #f4f6f9; text-align: left; padding: 10px 12px; font-size: 13px; color: #444; border-bottom: 2px solid #d5dbe3; white-space: nowrap; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #e6e9ee; vertical-align: middle; }
+  tbody tr:hover { background: #f8fafc; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .vendor { font-weight: 600; }
+  .item-cell { cursor: pointer; color: #1e5aa8; }
+  .item-cell:hover { text-decoration: underline; }
+  .item-cell input { width: 90px; padding: 4px 6px; font-size: 14px; border: 1px solid #1e5aa8; border-radius: 4px; }
+  .empty { text-align: center; padding: 28px; color: #777; }
+
+  /* ====== Pill status ====== */
+  .pill { display: inline-block; padding: 4px 12px; border-radius: 20px; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .4px; white-space: nowrap; }
+  .pill.ON_SCHEDULE { background: #12b76a; }
+  .pill.DELAYED { background: #f04438; }
+  .pill.OVERDUE { background: #f79009; }
+  .pill.SCHEDULED { background: #2e90fa; }
+
+  /* ====== Modal ====== */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #fff; border-radius: 10px; width: 100%; max-width: 520px; padding: 20px; }
+  .modal h2 { font-size: 18px; margin-bottom: 14px; color: #1e5aa8; }
+  .modal .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .modal .field.full { grid-column: 1 / -1; }
+  .modal label { font-size: 13px; font-weight: 600; color: #555; }
+  .modal input, .modal select { padding: 8px 10px; border: 1px solid #c6cdd6; border-radius: 6px; font-size: 14px; width: 100%; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .hint { font-size: 12px; color: #888; }
+
+  .msg { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 14px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: #e6f6ee; color: #067647; border: 1px solid #a9e5c5; }
+  .msg.err { background: #fdecea; color: #b42318; border: 1px solid #f1b6b0; }
+  footer { text-align: center; color: #888; font-size: 12px; padding: 18px 0 8px; }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(2) { border-right: none; }
+    .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid #d5dbe3; }
+    .board-title { font-size: 16px; }
+    .modal .grid { grid-template-columns: 1fr; }
+    .clockbox { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">TWIS<span>.</span></div>
+      <div class="sub">RECEIVING</div>
+    </div>
+    <div class="userbox">Selamat datang,<br><b>Admin Gudang</b> &middot; SUPER ADMIN</div>
+    <div class="clockbox">
+      <div id="clockDate">—</div>
+      <div class="time" id="clockTime">--:--:--</div>
+      <div>WIB (Asia/Jakarta)</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="board-title">VENDOR ARRIVAL MONITORING</div>
+
+  <!-- Strip statistik: klik untuk filter berdasarkan status -->
+  <section class="stats" id="statsBar">
+    <div class="stat remaining" data-status="REMAINING" title="Klik untuk menampilkan yang belum tiba">
+      <div class="label">REMAINING</div>
+      <div class="num" id="statRemaining">0</div>
+      <small>belum tiba &middot; klik untuk filter</small>
+    </div>
+    <div class="stat delayed" data-status="DELAYED" title="Klik untuk menampilkan yang terlambat">
+      <div class="label">DELAYED PLAN</div>
+      <div class="num" id="statDelayed">0</div>
+      <small>terlambat &middot; klik untuk filter</small>
+    </div>
+    <div class="stat overdue" data-status="OVERDUE" title="Klik untuk menampilkan yang lewat batas">
+      <div class="label">OVERDUE ARRIVAL</div>
+      <div class="num" id="statOverdue">0</div>
+      <small>lewat batas &middot; klik untuk filter</small>
+    </div>
+    <div class="stat onschedule" data-status="ON SCHEDULE" title="Klik untuk menampilkan yang tepat waktu">
+      <div class="label">ON SCHEDULE</div>
+      <div class="num" id="statOnSchedule">0</div>
+      <small>tepat waktu &middot; klik untuk filter</small>
+    </div>
+  </section>
+
+  <!-- Toolbar: filter + aksi -->
+  <section class="toolbar">
+    <label for="filterDate">Tanggal</label>
+    <input type="date" id="filterDate">
+    <label for="filterPlant">Plant</label>
+    <select id="filterPlant"><option value="">Semua Plant</option></select>
+    <label for="filterStatus">Status</label>
+    <select id="filterStatus">
+      <option value="">Semua Status</option>
+      <option value="ON SCHEDULE">ON SCHEDULE</option>
+      <option value="DELAYED">DELAYED</option>
+      <option value="OVERDUE">OVERDUE</option>
+      <option value="SCHEDULED">SCHEDULED</option>
+    </select>
+    <input type="search" id="searchVendor" placeholder="Cari vendor...">
+    <span class="spacer"></span>
+    <button class="btn-primary" id="btnAdd">+ Tambah Jadwal</button>
+    <button class="btn-ghost" id="btnSample">Muat Data Contoh</button>
+    <button class="btn-danger" id="btnClear">Hapus Semua Data</button>
+  </section>
+
+  <!-- Tabel kedatangan -->
+  <section class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Plan Time</th>
+          <th>Vendor Name</th>
+          <th>Truck Station</th>
+          <th>Rit</th>
+          <th>Plant</th>
+          <th>Arriv. Time</th>
+          <th>Item Received</th>
+          <th>Status Arrival</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </section>
+
+  <div class="msg" id="msg"></div>
+
+  <footer>
+    Vendor Arrival Monitoring &middot; data tersimpan otomatis di browser (localStorage) &middot; klik angka statistik untuk memfilter &middot; klik kolom Item Received untuk mengisi jumlah item
+  </footer>
+</main>
+
+<!-- Modal tambah / edit jadwal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2 id="modalTitle">Tambah Jadwal</h2>
+    <form id="scheduleForm">
+      <input type="hidden" id="fId">
+      <div class="grid">
+        <div class="field">
+          <label for="fDate">Tanggal</label>
+          <input type="date" id="fDate" required>
+        </div>
+        <div class="field">
+          <label for="fVendor">Vendor Name</label>
+          <input type="text" id="fVendor" placeholder="Nama vendor" required>
+        </div>
+        <div class="field">
+          <label for="fPlanStart">Plan Time &mdash; mulai</label>
+          <input type="time" id="fPlanStart" required>
+        </div>
+        <div class="field">
+          <label for="fPlanEnd">Plan Time &mdash; selesai</label>
+          <input type="time" id="fPlanEnd" required>
+        </div>
+        <div class="field">
+          <label for="fStation">Truck Station</label>
+          <input type="text" id="fStation" placeholder="cth: TS 01-01" required>
+        </div>
+        <div class="field">
+          <label for="fRit">Rit</label>
+          <input type="number" id="fRit" min="1" value="1" required>
+        </div>
+        <div class="field">
+          <label for="fPlant">Plant</label>
+          <input type="text" id="fPlant" value="Karawang 1" required>
+        </div>
+        <div class="field">
+          <label for="fArrival">Arriv. Time <span class="hint">(kosongkan bila belum tiba)</span></label>
+          <input type="time" id="fArrival">
+        </div>
+        <div class="field full">
+          <label for="fItem">Item Received</label>
+          <input type="text" id="fItem" placeholder="cth: 12 item / 120 pcs">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn-ghost" id="btnCancel">Batal</button>
+        <button type="submit" class="btn-primary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   Vendor Arrival Monitoring — aplikasi statis (localStorage)
+   Status dihitung live dari plan time vs jam tiba (WIB).
+   ========================================================= */
+
+var LS_KEY = "vam_schedules_v1";
+
+/* ---------- util tanggal / jam (WIB) ---------- */
+function todayWIB() {
+  // Tanggal hari ini dalam zona Asia/Jakarta, format YYYY-MM-DD
+  var parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  var o = {};
+  parts.forEach(function (p) { o[p.type] = p.value; });
+  return o.year + "-" + o.month + "-" + o.day;
+}
+function nowWIBParts() {
+  var d = new Date();
+  var t = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+  }).format(d);
+  var date = new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "long", year: "numeric"
+  }).format(d);
+  return { time: t, date: date };
+}
+function timeToMinutes(hhmm) {
+  if (!hhmm) return null;
+  var p = hhmm.split(":");
+  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+}
+function nowMinutesWIB() {
+  var t = nowWIBParts().time.split(":");
+  return parseInt(t[0], 10) * 60 + parseInt(t[1], 10);
+}
+function nowHHMM() {
+  return nowWIBParts().time.slice(0, 5);
+}
+function uid() {
+  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+/* ---------- data contoh (10 vendor dari screenshot) ---------- */
+function sampleData(dateStr) {
+  var rows = [
+    ["07:50", "08:20", "KANSAI PAINT INDONESIA", "TS 01-01", "07:45"],
+    ["07:50", "08:20", "ROVI", "TS 01-02", "07:51"],
+    ["08:00", "09:00", "SADIKUN NIAGAMAS RAYA", "TS 01-03", ""],
+    ["08:05", "08:35", "KANSAI PAINT INDONESIA", "TS 01-09", ""],
+    ["08:15", "08:45", "KANSAI PAINT INDONESIA", "TS 01-07", ""],
+    ["08:30", "09:00", "IWATANI INDUSTRI GAS", "TS 01-06", ""],
+    ["08:30", "09:00", "EXIS COLLECTION KERAJINAN", "TS 01-01", ""],
+    ["08:30", "09:00", "BERKAH", "TS 01-02", ""],
+    ["09:00", "09:30", "PT MURNI CAHAYA PRATAMA", "TS 01-09", ""],
+    ["09:20", "09:50", "NIPSEA PAINT AND CHEMICALS", "TS 01-09", ""]
+  ];
+  return rows.map(function (r) {
+    return {
+      id: uid(), date: dateStr, planStart: r[0], planEnd: r[1],
+      vendor: r[2], station: r[3], rit: 1, plant: "Karawang 1",
+      arrival: r[4], item: ""
+    };
+  });
+}
+
+/* ---------- state ---------- */
+var schedules = [];
+var activeStatusFilter = ""; // dari klik strip statistik
+
+function load() {
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    schedules = raw ? JSON.parse(raw) : [];
+  } catch (e) { schedules = []; }
+  if (!Array.isArray(schedules)) schedules = [];
+  // Muat data contoh otomatis saat pertama kali dibuka
+  if (schedules.length === 0) {
+    schedules = sampleData(todayWIB());
+    save();
+  }
+}
+function save() {
+  localStorage.setItem(LS_KEY, JSON.stringify(schedules));
+}
+
+/* ---------- status live ---------- */
+function computeStatus(s) {
+  var today = todayWIB();
+  var end = timeToMinutes(s.planEnd);
+  var start = timeToMinutes(s.planStart);
+  if (s.arrival) {
+    var arr = timeToMinutes(s.arrival);
+    return arr <= end ? "ON SCHEDULE" : "DELAYED";
+  }
+  if (s.date < today) return "OVERDUE";      // tanggal lewat, tidak pernah tiba
+  if (s.date > today) return "SCHEDULED";    // jadwal masa depan
+  var now = nowMinutesWIB();
+  if (now < start) return "SCHEDULED";
+  if (now <= end) return "SCHEDULED";
+  if (now <= end + 60) return "DELAYED";     // lewat plan < 60 menit
+  return "OVERDUE";                          // lewat plan >= 60 menit
+}
+
+/* ---------- render ---------- */
+var el = function (id) { return document.getElementById(id); };
+
+function currentFilters() {
+  return {
+    date: el("filterDate").value,
+    plant: el("filterPlant").value,
+    status: el("filterStatus").value || activeStatusFilter,
+    q: el("searchVendor").value.trim().toLowerCase()
+  };
+}
+
+function renderStats() {
+  var date = el("filterDate").value;
+  var plant = el("filterPlant").value;
+  var rows = schedules.filter(function (s) {
+    return s.date === date && (!plant || s.plant === plant);
+  });
+  var remaining = 0, delayed = 0, overdue = 0, onSchedule = 0;
+  rows.forEach(function (s) {
+    if (!s.arrival) remaining++;
+    var st = computeStatus(s);
+    if (st === "DELAYED") delayed++;
+    else if (st === "OVERDUE") overdue++;
+    else if (st === "ON SCHEDULE") onSchedule++;
+  });
+  el("statRemaining").textContent = remaining;
+  el("statDelayed").textContent = delayed;
+  el("statOverdue").textContent = overdue;
+  el("statOnSchedule").textContent = onSchedule;
+}
+
+function renderPlants() {
+  var sel = el("filterPlant");
+  var cur = sel.value;
+  var plants = [];
+  schedules.forEach(function (s) { if (plants.indexOf(s.plant) === -1) plants.push(s.plant); });
+  plants.sort();
+  sel.innerHTML = '<option value="">Semua Plant</option>' +
+    plants.map(function (p) { return '<option value="' + esc(p) + '">' + esc(p) + '</option>'; }).join("");
+  if (plants.indexOf(cur) !== -1) sel.value = cur;
+}
+
+function renderTable() {
+  var f = currentFilters();
+  var rows = schedules.filter(function (s) {
+    if (s.date !== f.date) return false;
+    if (f.plant && s.plant !== f.plant) return false;
+    if (f.q && s.vendor.toLowerCase().indexOf(f.q) === -1) return false;
+    if (f.status) {
+      if (f.status === "REMAINING") { if (s.arrival) return false; }
+      else if (computeStatus(s) !== f.status) return false;
+    }
+    return true;
+  });
+  rows.sort(function (a, b) {
+    return (a.planStart + a.vendor).localeCompare(b.planStart + b.vendor);
+  });
+
+  var tb = el("tableBody");
+  if (rows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="10" class="empty">Tidak ada jadwal untuk filter ini. Tambah jadwal baru atau muat data contoh.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(function (s, i) {
+    var st = computeStatus(s);
+    var plan = esc(s.planStart) + " - " + esc(s.planEnd);
+    var arrival = s.arrival ? esc(s.arrival) : "&mdash;";
+    var item = s.item ? esc(s.item) : '<span style="color:#999">&mdash;</span>';
+    var action = s.arrival
+      ? '<button class="btn-ghost btn-small" data-act="edit" data-id="' + s.id + '">Edit</button>'
+      : '<button class="btn-checkin btn-small" data-act="checkin" data-id="' + s.id + '">Check-in</button> ' +
+        '<button class="btn-ghost btn-small" data-act="edit" data-id="' + s.id + '">Edit</button>';
+    action += ' <button class="btn-danger btn-small" data-act="del" data-id="' + s.id + '">Hapus</button>';
+    return '<tr>' +
+      '<td class="num">' + (i + 1) + '</td>' +
+      '<td class="num">' + plan + '</td>' +
+      '<td class="vendor">' + esc(s.vendor) + '</td>' +
+      '<td>' + esc(s.station) + '</td>' +
+      '<td class="num">' + esc(s.rit) + '</td>' +
+      '<td>' + esc(s.plant) + '</td>' +
+      '<td class="num">' + arrival + '</td>' +
+      '<td class="item-cell" data-act="item" data-id="' + s.id + '" title="Klik untuk mengisi Item Received">' + item + '</td>' +
+      '<td><span class="pill ' + st.replace(" ", "_") + '">' + st + '</span></td>' +
+      '<td style="white-space:nowrap">' + action + '</td>' +
+      '</tr>';
+  }).join("");
+}
+
+function renderAll() {
+  renderPlants();
+  renderStats();
+  renderTable();
+  // tandai kotak statistik yang aktif
+  document.querySelectorAll("#statsBar .stat").forEach(function (box) {
+    box.classList.toggle("active", activeStatusFilter !== "" && box.dataset.status === activeStatusFilter);
+  });
+}
+
+/* ---------- pesan ---------- */
+var msgTimer = null;
+function showMsg(text, ok) {
+  var m = el("msg");
+  m.textContent = text;
+  m.className = "msg show " + (ok === false ? "err" : "ok");
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(function () { m.className = "msg"; }, 4000);
+}
+
+/* ---------- jam live ---------- */
+function tickClock() {
+  var p = nowWIBParts();
+  el("clockTime").textContent = p.time;
+  el("clockDate").textContent = p.date;
+}
+
+/* ---------- modal tambah / edit ---------- */
+function openModal(s) {
+  el("modalTitle").textContent = s ? "Edit Jadwal" : "Tambah Jadwal";
+  el("fId").value = s ? s.id : "";
+  el("fDate").value = s ? s.date : el("filterDate").value;
+  el("fPlanStart").value = s ? s.planStart : "";
+  el("fPlanEnd").value = s ? s.planEnd : "";
+  el("fVendor").value = s ? s.vendor : "";
+  el("fStation").value = s ? s.station : "";
+  el("fRit").value = s ? s.rit : 1;
+  el("fPlant").value = s ? s.plant : "Karawang 1";
+  el("fArrival").value = s ? (s.arrival || "") : "";
+  el("fItem").value = s ? (s.item || "") : "";
+  el("modalBackdrop").classList.add("open");
+}
+function closeModal() {
+  el("modalBackdrop").classList.remove("open");
+}
+
+el("scheduleForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var id = el("fId").value;
+  var data = {
+    date: el("fDate").value,
+    planStart: el("fPlanStart").value,
+    planEnd: el("fPlanEnd").value,
+    vendor: el("fVendor").value.trim().toUpperCase(),
+    station: el("fStation").value.trim().toUpperCase(),
+    rit: parseInt(el("fRit").value, 10) || 1,
+    plant: el("fPlant").value.trim(),
+    arrival: el("fArrival").value || "",
+    item: el("fItem").value.trim()
+  };
+  if (timeToMinutes(data.planEnd) <= timeToMinutes(data.planStart)) {
+    showMsg("Plan Time selesai harus lebih besar dari mulai.", false);
+    return;
+  }
+  if (id) {
+    var i = schedules.findIndex(function (s) { return s.id === id; });
+    if (i !== -1) { data.id = id; schedules[i] = data; }
+    showMsg("Jadwal " + data.vendor + " berhasil diubah.");
+  } else {
+    data.id = uid();
+    schedules.push(data);
+    showMsg("Jadwal " + data.vendor + " berhasil ditambahkan.");
+  }
+  save();
+  closeModal();
+  renderAll();
+});
+
+/* ---------- aksi tabel (delegasi klik) ---------- */
+el("tableBody").addEventListener("click", function (e) {
+  var t = e.target.closest("[data-act]");
+  if (!t) return;
+  var id = t.dataset.id;
+  var act = t.dataset.act;
+  var s = schedules.find(function (x) { return x.id === id; });
+  if (!s) return;
+
+  if (act === "checkin") {
+    s.arrival = nowHHMM();
+    save();
+    renderAll();
+    showMsg(s.vendor + " check-in pukul " + s.arrival + " WIB. Klik kolom Item Received untuk mengisi jumlah item.");
+  } else if (act === "edit") {
+    openModal(s);
+  } else if (act === "del") {
+    if (confirm("Hapus jadwal " + s.vendor + " (" + s.planStart + " - " + s.planEnd + ")?")) {
+      schedules = schedules.filter(function (x) { return x.id !== id; });
+      save();
+      renderAll();
+      showMsg("Jadwal dihapus.");
+    }
+  } else if (act === "item") {
+    // edit inline Item Received
+    var cell = t;
+    var cur = s.item || "";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.value = cur;
+    input.placeholder = "cth: 12 item";
+    cell.textContent = "";
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+    var done = false;
+    function finish(saveIt) {
+      if (done) return;
+      done = true;
+      if (saveIt) {
+        s.item = input.value.trim();
+        save();
+        renderAll();
+        showMsg("Item Received untuk " + s.vendor + " disimpan: " + (s.item || "(kosong)"));
+      } else {
+        renderAll();
+      }
+    }
+    input.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") finish(true);
+      else if (ev.key === "Escape") finish(false);
+      ev.stopPropagation();
+    });
+    input.addEventListener("blur", function () { finish(true); });
+  }
+});
+
+/* ---------- filter & tombol ---------- */
+el("filterDate").addEventListener("change", renderAll);
+el("filterPlant").addEventListener("change", renderAll);
+el("filterStatus").addEventListener("change", function () {
+  activeStatusFilter = "";
+  renderAll();
+});
+el("searchVendor").addEventListener("input", renderAll);
+
+document.querySelectorAll("#statsBar .stat").forEach(function (box) {
+  box.addEventListener("click", function () {
+    var st = box.dataset.status;
+    // klik ulang pada status yang sama = lepas filter
+    activeStatusFilter = (activeStatusFilter === st) ? "" : st;
+    el("filterStatus").value = "";
+    renderAll();
+  });
+});
+
+el("btnAdd").addEventListener("click", function () { openModal(null); });
+el("btnCancel").addEventListener("click", closeModal);
+el("modalBackdrop").addEventListener("click", function (e) {
+  if (e.target === el("modalBackdrop")) closeModal();
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeModal();
+});
+
+el("btnSample").addEventListener("click", function () {
+  var date = el("filterDate").value;
+  var exists = schedules.some(function (s) { return s.date === date; });
+  if (exists && !confirm("Tanggal ini sudah ada jadwal. Ganti dengan data contoh (10 vendor)?")) return;
+  schedules = schedules.filter(function (s) { return s.date !== date; }).concat(sampleData(date));
+  save();
+  renderAll();
+  showMsg("Data contoh 10 vendor dimuat untuk tanggal " + date + ".");
+});
+
+el("btnClear").addEventListener("click", function () {
+  if (!confirm("Hapus SEMUA data jadwal di semua tanggal? Tindakan ini tidak bisa dibatalkan.")) return;
+  schedules = [];
+  save();
+  renderAll();
+  showMsg("Semua data dihapus.");
+});
+
+/* ---------- init ---------- */
+el("filterDate").value = todayWIB();
+load();
+renderAll();
+tickClock();
+setInterval(function () {
+  tickClock();
+  renderStats();
+  // re-render tabel tiap menit agar status live ikut berubah
+  if (new Date().getSeconds() === 0) renderTable();
+}, 1000);
+</script>
+</body>
+</html>
